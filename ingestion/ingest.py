@@ -1,45 +1,29 @@
 """
-Ingestion script: loads raw CSVs into DuckDB staging schema,
+Ingestion script: loads raw tables from BigQuery into DuckDB staging schema,
 then builds warehouse star schema (dims + facts).
+Requires: gcloud auth application-default login
 Run from project root: python3 ingestion/ingest.py
 """
 
 import duckdb
 import pathlib
-import sys
 
 DB_PATH = "db/olist.duckdb"
 SQL_PATH = "warehouse/schema.sql"
-DATA_DIR = "data"
-
-EXPECTED_FILES = [
-    "olist_customers_dataset.csv",
-    "olist_geolocation_dataset.csv",
-    "olist_order_items_dataset.csv",
-    "olist_order_payments_dataset.csv",
-    "olist_order_reviews_dataset.csv",
-    "olist_orders_dataset.csv",
-    "olist_products_dataset.csv",
-    "olist_sellers_dataset.csv",
-    "product_category_name_translation.csv",
-]
-
-
-def check_data_files():
-    missing = [f for f in EXPECTED_FILES if not pathlib.Path(DATA_DIR, f).exists()]
-    if missing:
-        print(f"ERROR: Missing data files: {missing}")
-        sys.exit(1)
-    print(f"  All {len(EXPECTED_FILES)} CSV files found.")
+BQ_PROJECT = "dsai-module-2-project-496708"
 
 
 def run(db_path: str = DB_PATH):
     print("=== Olist Ingestion Pipeline ===\n")
 
-    check_data_files()
-
     pathlib.Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(db_path)
+
+    print("Setting up BigQuery connection...")
+    con.execute("INSTALL bigquery FROM community")
+    con.execute("LOAD bigquery")
+    con.execute(f"ATTACH 'project={BQ_PROJECT}' AS bq (TYPE bigquery, READ_ONLY)")
+    print(f"  Connected to BigQuery project: {BQ_PROJECT}\n")
 
     print("Loading schema SQL...")
     sql = pathlib.Path(SQL_PATH).read_text()

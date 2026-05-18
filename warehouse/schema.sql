@@ -6,15 +6,15 @@
 
 CREATE SCHEMA IF NOT EXISTS staging;
 
-CREATE OR REPLACE TABLE staging.orders AS SELECT * FROM read_csv_auto('data/olist_orders_dataset.csv');
-CREATE OR REPLACE TABLE staging.order_items AS SELECT * FROM read_csv_auto('data/olist_order_items_dataset.csv');
-CREATE OR REPLACE TABLE staging.order_payments AS SELECT * FROM read_csv_auto('data/olist_order_payments_dataset.csv');
-CREATE OR REPLACE TABLE staging.order_reviews AS SELECT * FROM read_csv_auto('data/olist_order_reviews_dataset.csv');
-CREATE OR REPLACE TABLE staging.customers AS SELECT * FROM read_csv_auto('data/olist_customers_dataset.csv');
-CREATE OR REPLACE TABLE staging.sellers AS SELECT * FROM read_csv_auto('data/olist_sellers_dataset.csv');
-CREATE OR REPLACE TABLE staging.products AS SELECT * FROM read_csv_auto('data/olist_products_dataset.csv');
-CREATE OR REPLACE TABLE staging.geolocation AS SELECT * FROM read_csv_auto('data/olist_geolocation_dataset.csv');
-CREATE OR REPLACE TABLE staging.category_translation AS SELECT * FROM read_csv_auto('data/product_category_name_translation.csv');
+CREATE OR REPLACE TABLE staging.orders AS SELECT * FROM bq.olist_raw.orders;
+CREATE OR REPLACE TABLE staging.order_items AS SELECT * FROM bq.olist_raw.order_items;
+CREATE OR REPLACE TABLE staging.order_payments AS SELECT * FROM bq.olist_raw.payments;
+CREATE OR REPLACE TABLE staging.order_reviews AS SELECT * FROM bq.olist_raw.reviews;
+CREATE OR REPLACE TABLE staging.customers AS SELECT * FROM bq.olist_raw.customers;
+CREATE OR REPLACE TABLE staging.sellers AS SELECT * FROM bq.olist_raw.sellers;
+CREATE OR REPLACE TABLE staging.products AS SELECT * FROM bq.olist_raw.products;
+CREATE OR REPLACE TABLE staging.geolocation AS SELECT * FROM bq.olist_raw.geolocation;
+CREATE OR REPLACE TABLE staging.category_translation AS SELECT * FROM bq.olist_raw.category_translation;
 
 
 -- ── DIMENSION TABLES ─────────────────────────────────────────
