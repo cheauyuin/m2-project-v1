@@ -19,10 +19,8 @@ CREATE OR REPLACE TABLE staging.category_translation AS SELECT * FROM bq.olist_r
 
 -- ── DIMENSION TABLES ─────────────────────────────────────────
 
-CREATE SCHEMA IF NOT EXISTS warehouse;
-
 -- dim_date: calendar spine for all time-based analysis
-CREATE OR REPLACE TABLE warehouse.dim_date AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.dim_date AS
 WITH date_spine AS (
     SELECT CAST(range AS DATE) AS date
     FROM range(DATE '2016-09-01', DATE '2018-11-01', INTERVAL 1 DAY)
@@ -43,7 +41,7 @@ FROM date_spine;
 -- dim_customers: one row per unique customer (customer_unique_id)
 -- The source has one customer_id per order, so we deduplicate here,
 -- keeping the most recent order's location as the canonical address.
-CREATE OR REPLACE TABLE warehouse.dim_customers AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.dim_customers AS
 WITH ranked AS (
     SELECT
         c.customer_unique_id,
@@ -76,7 +74,7 @@ LEFT JOIN (
 WHERE r.rn = 1;
 
 -- dim_sellers
-CREATE OR REPLACE TABLE warehouse.dim_sellers AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.dim_sellers AS
 SELECT
     s.seller_id                                 AS seller_key,
     s.seller_zip_code_prefix                    AS zip_code,
@@ -94,7 +92,7 @@ LEFT JOIN (
 ) g ON s.seller_zip_code_prefix = g.geolocation_zip_code_prefix;
 
 -- dim_products
-CREATE OR REPLACE TABLE warehouse.dim_products AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.dim_products AS
 SELECT
     p.product_id                                AS product_key,
     COALESCE(t.product_category_name_english,
@@ -117,7 +115,7 @@ LEFT JOIN staging.category_translation t
 -- ── FACT TABLES ───────────────────────────────────────────────
 
 -- fact_orders: one row per order
-CREATE OR REPLACE TABLE warehouse.fact_orders AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.fact_orders AS
 WITH payment_agg AS (
     SELECT
         order_id,
@@ -164,7 +162,7 @@ LEFT JOIN payment_agg p USING (order_id)
 LEFT JOIN review_agg r USING (order_id);
 
 -- fact_order_items: one row per item in each order
-CREATE OR REPLACE TABLE warehouse.fact_order_items AS
+CREATE OR REPLACE TABLE bq.olist_warehouse.fact_order_items AS
 SELECT
     i.order_id,
     i.order_item_id,
@@ -181,4 +179,4 @@ SELECT
     fo.delivery_delay_days,
     fo.order_status
 FROM staging.order_items i
-JOIN warehouse.fact_orders fo USING (order_id);
+JOIN bq.olist_warehouse.fact_orders fo USING (order_id);
