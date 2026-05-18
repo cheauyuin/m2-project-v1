@@ -1,0 +1,23 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "kaggle-token",
+      "description": "Kaggle API token (from kaggle.com/settings/account → Create New API Token)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "composio": {
+      "type": "http",
+      "url": "https://connect.composio.dev/mcp"
+    },
+    "kaggle": {
+      "type": "http",
+      "url": "https://www.kaggle.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:kaggle-token}"
+      }
+    }
+  }
+}
