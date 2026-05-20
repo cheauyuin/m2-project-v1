@@ -341,7 +341,7 @@ function drawMarkers() {
     });
     m.on('mouseover', () => { infoControl.update(s); m.setStyle({ weight: 3, color: '#0f1f3d' }); });
     m.on('mouseout',  () => { infoControl.update(null); m.setStyle({ weight: 1.5, color: 'rgba(255,255,255,0.7)' }); });
-    m.on('click', () => toggleState(s.state));
+    m.on('click', () => isolateState(s.state));
     m.bindTooltip(
       `<b>${s.name}</b><br>` +
       `${s.total_orders.toLocaleString()} orders &nbsp;|&nbsp; ` +
@@ -446,6 +446,21 @@ function toggleState(code) {
   if (cb) cb.checked = selectedStates.has(code);
   drawMarkers();
   updateCharts();
+}
+
+function isolateState(code) {
+  if (selectedStates.size === 1 && selectedStates.has(code)) {
+    selectAll();
+  } else {
+    selectedStates.clear();
+    selectedStates.add(code);
+    D.byState.forEach(s => {
+      const cb = document.getElementById(`cb-${s.state}`);
+      if (cb) cb.checked = (s.state === code);
+    });
+    drawMarkers();
+    updateCharts();
+  }
 }
 
 function selectAll() {
