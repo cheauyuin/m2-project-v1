@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olist E-Commerce Analysis Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(135deg,#0f1f3d 0%,#1e3a5f 60%,#0f2640 100%);
+  color:#fff;padding:22px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  border-bottom:3px solid #f39c12;display:flex;align-items:center;justify-content:space-between}
+.hdr-left h1{font-size:26px;font-weight:700;letter-spacing:-0.3px}
+.hdr-left p{font-size:13px;opacity:0.75;margin-top:3px}
+.kpi-strip{display:flex;gap:24px}
+.kpi-chip{text-align:center}
+.kpi-chip .v{font-size:20px;font-weight:800;color:#f39c12}
+.kpi-chip .l{font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.8px;margin-top:2px}
+
+/* ── LAYOUT ── */
+.dash{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:14px;max-width:1700px;margin:0 auto}
+
+/* ── LEFT PANEL ── */
+.panel{background:#fff;border-radius:6px;padding:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);border:1px solid #e2e8f0;
+  position:sticky;top:14px;height:fit-content;max-height:calc(100vh - 100px);overflow-y:auto}
+.panel-section{margin-bottom:22px}
+.panel-title{font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;
+  letter-spacing:0.8px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+
+/* view mode buttons */
+.mode-btn{width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;
+  border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;
+  font-size:12px;font-weight:500;color:#475569;transition:all 0.15s;display:flex;align-items:center;gap:8px}
+.mode-btn .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.mode-btn:hover{background:#f0f4f8;border-color:#cbd5e1}
+.mode-btn.active{background:#0f1f3d;color:#fff;border-color:#0f1f3d}
+.mode-btn.active .dot{box-shadow:0 0 0 2px rgba(255,255,255,0.4)}
+
+/* state checkboxes */
+.state-list{max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;
+  border-radius:5px;padding:10px;background:#f8fafc}
+.state-list::-webkit-scrollbar{width:5px}
+.state-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.state-item{display:flex;align-items:center;margin-bottom:7px;padding:5px 7px;
+  border-radius:4px;transition:background 0.1s;cursor:pointer}
+.state-item:hover{background:#e2e8f0}
+.state-item input{margin-right:8px;cursor:pointer;accent-color:#0f1f3d}
+.state-item label{font-size:12px;color:#374151;cursor:pointer}
+.state-item label span{color:#94a3b8;font-size:11px;margin-left:4px}
+.btn-ctrl{padding:7px 12px;border-radius:5px;border:1px solid #e2e8f0;
+  background:#f8fafc;font-size:11px;font-weight:600;cursor:pointer;
+  color:#475569;transition:all 0.15s;margin-right:6px}
+.btn-ctrl:hover{background:#e2e8f0}
+.btn-ctrl.primary{background:#0f1f3d;color:#fff;border-color:#0f1f3d}
+.btn-ctrl.primary:hover{background:#1e3a5f}
+
+/* legend */
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;
+  color:#475569;margin-bottom:7px}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.legend-rect{width:18px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* data info */
+.data-info{font-size:11px;color:#94a3b8;line-height:1.7}
+
+/* ── CONTENT AREA ── */
+.content{display:grid;grid-template-rows:auto auto;gap:14px}
+
+/* map card */
+.map-card{background:#fff;border-radius:6px;padding:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);border:1px solid #e2e8f0}
+.map-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.map-card-hdr h3{font-size:15px;font-weight:700;color:#0f1f3d}
+.map-card-hdr p{font-size:12px;color:#64748b}
+#map{height:480px;border-radius:5px;border:1px solid #e2e8f0}
+
+/* chart grid */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.chart-card{background:#fff;border-radius:6px;padding:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);border:1px solid #e2e8f0}
+.chart-card h3{font-size:14px;font-weight:700;color:#0f1f3d;margin-bottom:4px}
+.chart-card p{font-size:11px;color:#64748b;margin-bottom:10px}
+.chart-div{width:100%;height:280px}
+
+/* aggregation badge */
+.agg-badge{position:absolute;bottom:10px;left:10px;z-index:1000;
+  background:#fff;padding:5px 10px;border-radius:4px;
+  font-size:11px;font-weight:600;color:#475569;
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);border:1px solid #e2e8f0}
+
+/* tile selector */
+.tile-select{font-size:11px;padding:5px 8px;border:1px solid #e2e8f0;
+  border-radius:4px;background:#f8fafc;color:#475569;cursor:pointer}
+
+/* highlight callout box on map */
+.map-info{background:#fff;padding:10px 14px;border-radius:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.15);font-size:12px;
+  line-height:1.8;min-width:160px}
+.map-info b{color:#0f1f3d;font-size:13px}
+.map-info .metric{color:#f39c12;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>🛒 Olist E-Commerce Analysis Dashboard</h1>
+    <p>Brazilian E-Commerce · Sep 2016 – Oct 2018 · Powered by BigQuery + DuckDB</p>
+  </div>
+  <div class="kpi-strip" id="kpi-strip"><!-- populated by JS --></div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="dash">
+
+  <!-- LEFT PANEL -->
+  <aside class="panel">
+
+    <!-- Map view modes -->
+    <div class="panel-section">
+      <div class="panel-title">Map View</div>
+      <button class="mode-btn active" data-mode="orders" onclick="setMode(this)">
+        <span class="dot" style="background:#1d4ed8"></span>Customer Volume
+      </button>
+      <button class="mode-btn" data-mode="delivery" onclick="setMode(this)">
+        <span class="dot" style="background:#16a34a"></span>Delivery Performance
+      </button>
+      <button class="mode-btn" data-mode="review" onclick="setMode(this)">
+        <span class="dot" style="background:#f59e0b"></span>Review Score
+      </button>
+      <button class="mode-btn" data-mode="opportunity" onclick="setMode(this)">
+        <span class="dot" style="background:#7c3aed"></span>Expansion Opportunity
+      </button>
+    </div>
+
+    <!-- State filter -->
+    <div class="panel-section">
+      <div class="panel-title">State Filter</div>
+      <div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn-ctrl primary" onclick="selectAll()">Select All</button>
+        <button class="btn-ctrl" onclick="clearAll()">Clear</button>
+      </div>
+      <div class="state-list" id="state-list"><!-- populated by JS --></div>
+    </div>
+
+    <!-- Map legend -->
+    <div class="panel-section">
+      <div class="panel-title">Legend</div>
+      <div id="legend"><!-- populated by JS --></div>
+    </div>
+
+    <!-- Tile style selector -->
+    <div class="panel-section">
+      <div class="panel-title">Map Style</div>
+      <select class="tile-select" id="tile-select" onchange="changeTile(this.value)">
+        <option value="voyager">CartoDB Voyager</option>
+        <option value="dark">CartoDB Dark</option>
+        <option value="positron">CartoDB Positron</option>
+        <option value="osm">OpenStreetMap</option>
+      </select>
+    </div>
+
+    <!-- Data info -->
+    <div class="panel-section">
+      <div class="panel-title">Data Source</div>
+      <div class="data-info" id="data-info"><!-- populated by JS --></div>
+    </div>
+
+  </aside>
+
+  <!-- CONTENT AREA -->
+  <div class="content">
+
+    <!-- MAP -->
+    <div class="map-card">
+      <div class="map-card-hdr">
+        <div>
+          <h3 id="map-title">Customer Volume by State</h3>
+          <p id="map-subtitle">Bubble size and colour represent order volume per state. Click a state for details.</p>
+        </div>
+        <p style="font-size:11px;color:#94a3b8" id="state-count-label">Showing all states</p>
+      </div>
+      <div style="position:relative">
+        <div id="map"></div>
+        <div class="agg-badge" id="agg-badge">State Level</div>
+      </div>
+    </div>
+
+    <!-- CHARTS GRID -->
+    <div class="chart-grid">
+
+      <div class="chart-card">
+        <h3>Revenue & Order Trend</h3>
+        <p>Monthly revenue (R$) and order volume — Sep 2016 to Oct 2018</p>
+        <div class="chart-div" id="chart-revenue"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Customer Segments (RFM)</h3>
+        <p>Recency–Frequency–Monetary segmentation of all customers</p>
+        <div class="chart-div" id="chart-rfm"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Delivery Performance by State</h3>
+        <p>Avg delivery delay vs review score. Bubble size = order volume.</p>
+        <div class="chart-div" id="chart-delivery"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top 10 Categories by Revenue</h3>
+        <p>Bar colour indicates average review score (green = high, red = low)</p>
+        <div class="chart-div" id="chart-cats"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const D = {"kpi": {"total_orders": 98207, "unique_customers": 94990, "total_revenue": 15739137.0, "avg_order_value": 160.26, "avg_review_score": 4.12, "late_orders": 6534, "repeat_pct": 3.0, "avg_repeat": 308.36, "avg_onetime": 161.22}, "byState": [{"state": "SP", "name": "São Paulo", "lat": -22.19, "lng": -48.79, "total_orders": 40503, "avg_review_score": 4.18, "late_pct": 4.4, "avg_delay_days": -11.2, "avg_freight_value": 15.12, "seller_count": 1849, "cs_ratio": 21.9}, {"state": "RJ", "name": "Rio de Janeiro", "lat": -22.25, "lng": -42.66, "total_orders": 12355, "avg_review_score": 3.87, "late_pct": 11.6, "avg_delay_days": -12.0, "avg_freight_value": 20.91, "seller_count": 171, "cs_ratio": 72.3}, {"state": "MG", "name": "Minas Gerais", "lat": -18.1, "lng": -44.38, "total_orders": 11357, "avg_review_score": 4.12, "late_pct": 4.4, "avg_delay_days": -13.3, "avg_freight_value": 20.63, "seller_count": 244, "cs_ratio": 46.5}, {"state": "RS", "name": "Rio Grande do Sul", "lat": -30.03, "lng": -53.23, "total_orders": 5343, "avg_review_score": 4.09, "late_pct": 5.8, "avg_delay_days": -14.1, "avg_freight_value": 21.61, "seller_count": 129, "cs_ratio": 41.4}, {"state": "PR", "name": "Paraná", "lat": -24.89, "lng": -51.55, "total_orders": 4923, "avg_review_score": 4.15, "late_pct": 3.9, "avg_delay_days": -13.5, "avg_freight_value": 20.46, "seller_count": 349, "cs_ratio": 14.1}, {"state": "SC", "name": "Santa Catarina", "lat": -27.45, "lng": -50.95, "total_orders": 3543, "avg_review_score": 4.05, "late_pct": 8.2, "avg_delay_days": -11.6, "avg_freight_value": 21.52, "seller_count": 190, "cs_ratio": 18.6}, {"state": "BA", "name": "Bahia", "lat": -12.57, "lng": -41.7, "total_orders": 3256, "avg_review_score": 3.86, "late_pct": 11.9, "avg_delay_days": -11.0, "avg_freight_value": 26.49, "seller_count": 19, "cs_ratio": 171.4}, {"state": "DF", "name": "Distrito Federal", "lat": -15.78, "lng": -47.93, "total_orders": 2080, "avg_review_score": 4.06, "late_pct": 5.9, "avg_delay_days": -12.2, "avg_freight_value": 21.07, "seller_count": 30, "cs_ratio": 69.3}, {"state": "ES", "name": "Espírito Santo", "lat": -19.19, "lng": -40.34, "total_orders": 1996, "avg_review_score": 4.02, "late_pct": 10.7, "avg_delay_days": -10.6, "avg_freight_value": 22.04, "seller_count": 23, "cs_ratio": 86.8}, {"state": "GO", "name": "Goiás", "lat": -15.83, "lng": -49.98, "total_orders": 1955, "avg_review_score": 4.04, "late_pct": 6.2, "avg_delay_days": -12.3, "avg_freight_value": 22.55, "seller_count": 40, "cs_ratio": 48.9}, {"state": "PE", "name": "Pernambuco", "lat": -8.81, "lng": -36.95, "total_orders": 1590, "avg_review_score": 4.02, "late_pct": 9.1, "avg_delay_days": -13.5, "avg_freight_value": 32.68, "seller_count": 9, "cs_ratio": 176.7}, {"state": "CE", "name": "Ceará", "lat": -5.5, "lng": -39.32, "total_orders": 1277, "avg_review_score": 3.87, "late_pct": 13.6, "avg_delay_days": -11.1, "avg_freight_value": 32.73, "seller_count": 13, "cs_ratio": 98.2}, {"state": "PA", "name": "Pará", "lat": -3.79, "lng": -52.48, "total_orders": 946, "avg_review_score": 3.84, "late_pct": 11.3, "avg_delay_days": -14.2, "avg_freight_value": 35.63, "seller_count": 1, "cs_ratio": 946.0}, {"state": "MT", "name": "Mato Grosso", "lat": -12.64, "lng": -55.42, "total_orders": 886, "avg_review_score": 4.0, "late_pct": 6.2, "avg_delay_days": -14.6, "avg_freight_value": 28.01, "seller_count": 4, "cs_ratio": 221.5}, {"state": "MA", "name": "Maranhão", "lat": -4.96, "lng": -45.27, "total_orders": 718, "avg_review_score": 3.76, "late_pct": 17.8, "avg_delay_days": -9.9, "avg_freight_value": 38.51, "seller_count": 1, "cs_ratio": 718.0}, {"state": "MS", "name": "Mato Grosso do Sul", "lat": -20.51, "lng": -54.54, "total_orders": 702, "avg_review_score": 4.06, "late_pct": 9.0, "avg_delay_days": -11.2, "avg_freight_value": 23.34, "seller_count": 5, "cs_ratio": 140.4}, {"state": "PB", "name": "Paraíba", "lat": -7.06, "lng": -36.55, "total_orders": 519, "avg_review_score": 4.04, "late_pct": 10.7, "avg_delay_days": -13.0, "avg_freight_value": 43.07, "seller_count": 6, "cs_ratio": 86.5}, {"state": "PI", "name": "Piauí", "lat": -7.72, "lng": -42.73, "total_orders": 476, "avg_review_score": 3.96, "late_pct": 13.6, "avg_delay_days": -11.5, "avg_freight_value": 39.12, "seller_count": 1, "cs_ratio": 476.0}, {"state": "RN", "name": "Rio Grande do Norte", "lat": -5.84, "lng": -36.53, "total_orders": 474, "avg_review_score": 4.11, "late_pct": 9.0, "avg_delay_days": -13.9, "avg_freight_value": 35.72, "seller_count": 5, "cs_ratio": 94.8}, {"state": "AL", "name": "Alagoas", "lat": -9.57, "lng": -36.78, "total_orders": 398, "avg_review_score": 3.83, "late_pct": 20.8, "avg_delay_days": -8.8, "avg_freight_value": 35.89, "seller_count": 0, "cs_ratio": 398.0}, {"state": "SE", "name": "Sergipe", "lat": -10.57, "lng": -37.45, "total_orders": 332, "avg_review_score": 3.89, "late_pct": 16.4, "avg_delay_days": -10.0, "avg_freight_value": 36.69, "seller_count": 2, "cs_ratio": 166.0}, {"state": "TO", "name": "Tocantins", "lat": -10.18, "lng": -48.33, "total_orders": 274, "avg_review_score": 4.16, "late_pct": 9.7, "avg_delay_days": -12.3, "avg_freight_value": 37.44, "seller_count": 0, "cs_ratio": 274.0}, {"state": "RO", "name": "Rondônia", "lat": -10.83, "lng": -63.34, "total_orders": 242, "avg_review_score": 4.07, "late_pct": 4.0, "avg_delay_days": -20.0, "avg_freight_value": 41.31, "seller_count": 2, "cs_ratio": 121.0}, {"state": "AM", "name": "Amazonas", "lat": -4.0, "lng": -61.99, "total_orders": 145, "avg_review_score": 4.11, "late_pct": 3.1, "avg_delay_days": -19.9, "avg_freight_value": 33.31, "seller_count": 1, "cs_ratio": 145.0}, {"state": "AC", "name": "Acre", "lat": -9.02, "lng": -70.81, "total_orders": 80, "avg_review_score": 4.13, "late_pct": 3.3, "avg_delay_days": -21.0, "avg_freight_value": 40.05, "seller_count": 1, "cs_ratio": 80.0}, {"state": "AP", "name": "Amapá", "lat": 0.9, "lng": -52.0, "total_orders": 67, "avg_review_score": 4.26, "late_pct": 3.7, "avg_delay_days": -18.4, "avg_freight_value": 34.16, "seller_count": 0, "cs_ratio": 67.0}, {"state": "RR", "name": "Roraima", "lat": 2.07, "lng": -61.4, "total_orders": 41, "avg_review_score": 3.89, "late_pct": 10.9, "avg_delay_days": -18.3, "avg_freight_value": 43.09, "seller_count": 0, "cs_ratio": 41.0}], "monthly": [{"label": "2017-01", "month_name": "January", "revenue": 137006.76, "orders": 787, "avg_value": 174.09, "avg_review": 4.09, "late": 22}, {"label": "2017-02", "month_name": "February", "revenue": 283621.94, "orders": 1718, "avg_value": 165.09, "avg_review": 4.1, "late": 49}, {"label": "2017-03", "month_name": "March", "revenue": 425656.4, "orders": 2617, "avg_value": 162.65, "avg_review": 4.13, "late": 116}, {"label": "2017-04", "month_name": "April", "revenue": 405988.38, "orders": 2377, "avg_value": 170.8, "avg_review": 4.07, "late": 151}, {"label": "2017-05", "month_name": "May", "revenue": 582926.16, "orders": 3640, "avg_value": 160.14, "avg_review": 4.18, "late": 106}, {"label": "2017-06", "month_name": "June", "revenue": 499827.47, "orders": 3205, "avg_value": 155.95, "avg_review": 4.18, "late": 95}, {"label": "2017-07", "month_name": "July", "revenue": 578858.58, "orders": 3946, "avg_value": 146.7, "avg_review": 4.23, "late": 108}, {"label": "2017-08", "month_name": "August", "revenue": 662071.77, "orders": 4272, "avg_value": 154.98, "avg_review": 4.27, "late": 122}, {"label": "2017-09", "month_name": "September", "revenue": 717195.22, "orders": 4227, "avg_value": 169.67, "avg_review": 4.22, "late": 182}, {"label": "2017-10", "month_name": "October", "revenue": 764785.28, "orders": 4547, "avg_value": 168.2, "avg_review": 4.17, "late": 187}, {"label": "2017-11", "month_name": "November", "revenue": 1172639.23, "orders": 7423, "avg_value": 157.97, "avg_review": 3.95, "late": 904}, {"label": "2017-12", "month_name": "December", "revenue": 861914.46, "orders": 5620, "avg_value": 153.37, "avg_review": 4.04, "late": 411}, {"label": "2018-01", "month_name": "January", "revenue": 1102639.41, "orders": 7187, "avg_value": 153.42, "avg_review": 4.07, "late": 403}, {"label": "2018-02", "month_name": "February", "revenue": 979966.23, "orders": 6625, "avg_value": 147.92, "avg_review": 3.86, "late": 926}, {"label": "2018-03", "month_name": "March", "revenue": 1152736.74, "orders": 7168, "avg_value": 160.82, "avg_review": 3.76, "late": 1328}, {"label": "2018-04", "month_name": "April", "revenue": 1156303.91, "orders": 6919, "avg_value": 167.12, "avg_review": 4.17, "late": 306}, {"label": "2018-05", "month_name": "May", "revenue": 1145748.63, "orders": 6833, "avg_value": 167.68, "avg_review": 4.21, "late": 443}, {"label": "2018-06", "month_name": "June", "revenue": 1020494.29, "orders": 6145, "avg_value": 166.07, "avg_review": 4.29, "late": 71}, {"label": "2018-07", "month_name": "July", "revenue": 1039880.16, "orders": 6233, "avg_value": 166.83, "avg_review": 4.29, "late": 208}, {"label": "2018-08", "month_name": "August", "revenue": 996896.15, "orders": 6421, "avg_value": 155.26, "avg_review": 4.29, "late": 393}, {"label": "2018-09", "month_name": "September", "revenue": 166.46, "orders": 1, "avg_value": 166.46, "avg_review": 1.0, "late": 0}], "rfm": [{"segment": "At Risk", "count": 24330, "pct": 25.6, "avg_spend": 164.72}, {"segment": "Needs Attention", "count": 23485, "pct": 24.7, "avg_spend": 132.29}, {"segment": "Champion", "count": 17034, "pct": 17.9, "avg_spend": 158.15}, {"segment": "Loyal", "count": 15630, "pct": 16.5, "avg_spend": 158.88}, {"segment": "Promising", "count": 10960, "pct": 11.5, "avg_spend": 180.55}, {"segment": "Cant Lose", "count": 3303, "pct": 3.5, "avg_spend": 434.59}, {"segment": "Lost", "count": 248, "pct": 0.3, "avg_spend": 133.49}], "categories": [{"category": "Health Beauty", "revenue": 1255695.13, "units": 9634, "review": 180.01, "freight_ratio": 0.199}, {"category": "Watches Gifts", "revenue": 1198185.21, "units": 5970, "review": 179.45, "freight_ratio": 0.131}, {"category": "Bed Bath Table", "revenue": 1035964.06, "units": 11097, "review": 180.93, "freight_ratio": 0.203}, {"category": "Sports Leisure", "revenue": 979740.92, "units": 8590, "review": 180.85, "freight_ratio": 0.204}, {"category": "Computers Accessories", "revenue": 904322.02, "units": 7781, "review": 178.18, "freight_ratio": 0.203}, {"category": "Furniture Decor", "revenue": 727465.05, "units": 8298, "review": 179.42, "freight_ratio": 0.233}, {"category": "Housewares", "revenue": 626825.8, "units": 6915, "review": 180.01, "freight_ratio": 0.251}, {"category": "Cool Stuff", "revenue": 620770.49, "units": 3779, "review": 176.62, "freight_ratio": 0.163}, {"category": "Auto", "revenue": 586585.73, "units": 4204, "review": 178.58, "freight_ratio": 0.215}, {"category": "Garden Tools", "revenue": 481009.94, "units": 4328, "review": 183.01, "freight_ratio": 0.231}]};
+
+// ── Tile styles ───────────────────────────────────────────────────────────────
+const TILES = {
+  voyager:  { url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+              attr:'© OpenStreetMap © CARTO' },
+  dark:     { url:'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
+              attr:'© OpenStreetMap © CARTO' },
+  positron: { url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+              attr:'© OpenStreetMap © CARTO' },
+  osm:      { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              attr:'© OpenStreetMap' },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let leafletMap, tileLayer, markersLayer, infoControl, legendControl;
+let currentMode     = 'orders';
+let selectedStates  = new Set(D.byState.map(s => s.state));
+let currentTile     = 'voyager';
+
+// ── Colour helpers ────────────────────────────────────────────────────────────
+const maxOrders  = Math.max(...D.byState.map(s => s.total_orders));
+const maxFreight = Math.max(...D.byState.map(s => s.avg_freight_value));
+const maxRatio   = Math.max(...D.byState.map(s => s.cs_ratio));
+
+function ordersColor(v) {
+  const t = v / maxOrders;
+  if (t < 0.10) return '#bfdbfe';
+  if (t < 0.30) return '#3b82f6';
+  if (t < 0.60) return '#1d4ed8';
+  return '#1e3a8a';
+}
+function deliveryColor(late) {
+  if (late < 4)  return '#16a34a';
+  if (late < 8)  return '#84cc16';
+  if (late < 12) return '#f59e0b';
+  if (late < 16) return '#ef4444';
+  return '#991b1b';
+}
+function reviewColor(r) {
+  if (r >= 4.3) return '#16a34a';
+  if (r >= 4.0) return '#84cc16';
+  if (r >= 3.7) return '#f59e0b';
+  if (r >= 3.4) return '#ef4444';
+  return '#991b1b';
+}
+function opportunityColor(ratio) {
+  const t = ratio / maxRatio;
+  if (t < 0.15) return '#ddd6fe';
+  if (t < 0.35) return '#a78bfa';
+  if (t < 0.60) return '#7c3aed';
+  return '#4c1d95';
+}
+function getColor(s) {
+  if (currentMode === 'orders')      return ordersColor(s.total_orders);
+  if (currentMode === 'delivery')    return deliveryColor(s.late_pct);
+  if (currentMode === 'review')      return reviewColor(s.avg_review_score);
+  if (currentMode === 'opportunity') return opportunityColor(s.cs_ratio);
+  return '#64748b';
+}
+function getRadius(s) {
+  const base = 8;
+  if (currentMode === 'orders')      return base + (s.total_orders / maxOrders) * 26;
+  if (currentMode === 'delivery')    return base + (s.late_pct / 20) * 22;
+  if (currentMode === 'review')      return base + ((5 - s.avg_review_score) / 2) * 20;
+  if (currentMode === 'opportunity') return base + (s.cs_ratio / maxRatio) * 26;
+  return base;
+}
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+function initMap() {
+  leafletMap = L.map('map', { zoomControl: true }).setView([-15.8, -47.9], 4);
+  const t = TILES[currentTile];
+  tileLayer = L.tileLayer(t.url, { attribution: t.attr, subdomains: 'abcd', maxZoom: 19 });
+  tileLayer.addTo(leafletMap);
+
+  // info control
+  infoControl = L.control({ position: 'topright' });
+  infoControl.onAdd = function() {
+    this._div = L.DomUtil.create('div', 'map-info');
+    this._div.innerHTML = '<b>Hover over a state</b>';
+    return this._div;
+  };
+  infoControl.update = function(s) {
+    if (!s) { this._div.innerHTML = '<b>Hover over a state</b>'; return; }
+    this._div.innerHTML =
+      `<b>${s.name} (${s.state})</b><br>` +
+      `Orders: <span class="metric">${s.total_orders.toLocaleString()}</span><br>` +
+      `Avg Review: <span class="metric">${s.avg_review_score.toFixed(2)}/5</span><br>` +
+      `Late Deliveries: <span class="metric">${s.late_pct.toFixed(1)}%</span><br>` +
+      `Avg Delay: <span class="metric">${s.avg_delay_days.toFixed(1)} d</span><br>` +
+      `Avg Freight: <span class="metric">R$ ${s.avg_freight_value.toFixed(2)}</span><br>` +
+      `Sellers: <span class="metric">${s.seller_count.toLocaleString()}</span><br>` +
+      `Customer/Seller: <span class="metric">${s.cs_ratio.toFixed(0)}×</span>`;
+  };
+  infoControl.addTo(leafletMap);
+
+  drawMarkers();
+  updateLegend();
+}
+
+// ── Draw markers ──────────────────────────────────────────────────────────────
+function drawMarkers() {
+  if (markersLayer) { leafletMap.removeLayer(markersLayer); markersLayer = null; }
+  const visible = D.byState.filter(s => selectedStates.has(s.state));
+  const markers = visible.map(s => {
+    const m = L.circleMarker([s.lat, s.lng], {
+      radius:      getRadius(s),
+      fillColor:   getColor(s),
+      color:       'rgba(255,255,255,0.7)',
+      weight:      1.5,
+      opacity:     1,
+      fillOpacity: 0.85,
+    });
+    m.on('mouseover', () => { infoControl.update(s); m.setStyle({ weight: 3, color: '#0f1f3d' }); });
+    m.on('mouseout',  () => { infoControl.update(null); m.setStyle({ weight: 1.5, color: 'rgba(255,255,255,0.7)' }); });
+    m.on('click', () => toggleState(s.state));
+    m.bindTooltip(
+      `<b>${s.name}</b><br>` +
+      `${s.total_orders.toLocaleString()} orders &nbsp;|&nbsp; ` +
+      `${s.avg_review_score.toFixed(2)}★ &nbsp;|&nbsp; ` +
+      `${s.late_pct.toFixed(1)}% late`,
+      { sticky: true }
+    );
+    return m;
+  });
+  markersLayer = L.layerGroup(markers).addTo(leafletMap);
+  document.getElementById('state-count-label').textContent =
+    `Showing ${visible.length} of ${D.byState.length} states`;
+}
+
+// ── Mode toggle ───────────────────────────────────────────────────────────────
+const MODE_META = {
+  orders:      { title: 'Customer Volume by State',
+                 sub:   'Bubble size and colour = order volume. Darker/larger = more orders.' },
+  delivery:    { title: 'Delivery Performance by State',
+                 sub:   'Colour = late delivery rate. Green < 4%, Red > 16%.' },
+  review:      { title: 'Customer Satisfaction by State',
+                 sub:   'Colour = avg review score. Green ≥ 4.3★, Red < 3.4★.' },
+  opportunity: { title: 'Geographic Expansion Opportunity',
+                 sub:   'Colour = customer-to-seller ratio. Purple = underserved markets.' },
+};
+
+function setMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMode = btn.dataset.mode;
+  document.getElementById('map-title').textContent    = MODE_META[currentMode].title;
+  document.getElementById('map-subtitle').textContent = MODE_META[currentMode].sub;
+  drawMarkers();
+  updateLegend();
+}
+
+// ── Legend ────────────────────────────────────────────────────────────────────
+const LEGENDS = {
+  orders: [
+    { color:'#bfdbfe', label:'< 10% of max (low)' },
+    { color:'#3b82f6', label:'10–30%' },
+    { color:'#1d4ed8', label:'30–60%' },
+    { color:'#1e3a8a', label:'> 60% (high volume)' },
+  ],
+  delivery: [
+    { color:'#16a34a', label:'< 4% late (excellent)' },
+    { color:'#84cc16', label:'4–8%' },
+    { color:'#f59e0b', label:'8–12%' },
+    { color:'#ef4444', label:'12–16%' },
+    { color:'#991b1b', label:'> 16% late (critical)' },
+  ],
+  review: [
+    { color:'#16a34a', label:'≥ 4.3★ (excellent)' },
+    { color:'#84cc16', label:'4.0–4.3★' },
+    { color:'#f59e0b', label:'3.7–4.0★' },
+    { color:'#ef4444', label:'3.4–3.7★' },
+    { color:'#991b1b', label:'< 3.4★ (poor)' },
+  ],
+  opportunity: [
+    { color:'#ddd6fe', label:'Low ratio (well served)' },
+    { color:'#a78bfa', label:'Moderate' },
+    { color:'#7c3aed', label:'High ratio' },
+    { color:'#4c1d95', label:'Very high (underserved)' },
+  ],
+};
+
+function updateLegend() {
+  const items = LEGENDS[currentMode];
+  const el = document.getElementById('legend');
+  el.innerHTML = items.map(i =>
+    `<div class="legend-item">
+       <span class="legend-dot" style="background:${i.color}"></span>
+       ${i.label}
+     </div>`
+  ).join('');
+}
+
+// ── State filter ──────────────────────────────────────────────────────────────
+function buildStateList() {
+  const sorted = [...D.byState].sort((a, b) => b.total_orders - a.total_orders);
+  const el = document.getElementById('state-list');
+  el.innerHTML = sorted.map(s =>
+    `<div class="state-item">
+       <input type="checkbox" id="cb-${s.state}" value="${s.state}" checked
+              onchange="toggleState('${s.state}')">
+       <label for="cb-${s.state}">
+         ${s.name}
+         <span>(${s.total_orders.toLocaleString()})</span>
+       </label>
+     </div>`
+  ).join('');
+}
+
+function toggleState(code) {
+  if (selectedStates.has(code)) {
+    if (selectedStates.size === 1) return;
+    selectedStates.delete(code);
+  } else {
+    selectedStates.add(code);
+  }
+  const cb = document.getElementById(`cb-${code}`);
+  if (cb) cb.checked = selectedStates.has(code);
+  drawMarkers();
+  updateCharts();
+}
+
+function selectAll() {
+  D.byState.forEach(s => {
+    selectedStates.add(s.state);
+    const cb = document.getElementById(`cb-${s.state}`);
+    if (cb) cb.checked = true;
+  });
+  drawMarkers();
+  updateCharts();
+}
+
+function clearAll() {
+  const first = [...selectedStates][0];
+  selectedStates.clear();
+  if (first) selectedStates.add(first);
+  D.byState.forEach(s => {
+    const cb = document.getElementById(`cb-${s.state}`);
+    if (cb) cb.checked = selectedStates.has(s.state);
+  });
+  drawMarkers();
+  updateCharts();
+}
+
+// ── Tile style ────────────────────────────────────────────────────────────────
+function changeTile(name) {
+  if (tileLayer) { leafletMap.removeLayer(tileLayer); }
+  currentTile = name;
+  const t = TILES[name];
+  tileLayer = L.tileLayer(t.url, { attribution: t.attr, subdomains: 'abcd', maxZoom: 19 });
+  tileLayer.addTo(leafletMap);
+}
+
+// ── KPI strip ─────────────────────────────────────────────────────────────────
+function buildKpis() {
+  const k = D.kpi;
+  const chips = [
+    { v: k.total_orders.toLocaleString(),       l: 'Total Orders' },
+    { v: `R$ ${(k.total_revenue/1e6).toFixed(2)}M`, l: 'Revenue' },
+    { v: `${k.avg_review_score.toFixed(2)} / 5`, l: 'Avg Review' },
+    { v: `${k.repeat_pct.toFixed(1)}%`,          l: 'Repeat Rate' },
+    { v: `R$ ${k.avg_order_value.toFixed(0)}`,   l: 'Avg Order' },
+    { v: k.late_orders.toLocaleString(),          l: 'Late Deliveries' },
+  ];
+  document.getElementById('kpi-strip').innerHTML = chips.map(c =>
+    `<div class="kpi-chip"><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`
+  ).join('');
+}
+
+// ── Plotly charts ─────────────────────────────────────────────────────────────
+const PLOTLY_LAYOUT_BASE = {
+  margin: { t: 10, l: 55, r: 20, b: 45 },
+  paper_bgcolor: 'white',
+  plot_bgcolor:  'white',
+  font: { family: 'Segoe UI, sans-serif', size: 11, color: '#475569' },
+  xaxis: { gridcolor: '#f1f5f9', linecolor: '#e2e8f0', tickfont: { size: 10 } },
+  yaxis: { gridcolor: '#f1f5f9', linecolor: '#e2e8f0', tickfont: { size: 10 } },
+  legend: { font: { size: 10 } },
+};
+const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
+
+function buildRevenueChart() {
+  const labels = D.monthly.map(m => m.label);
+  const rev    = D.monthly.map(m => m.revenue);
+  const orders = D.monthly.map(m => m.orders);
+
+  Plotly.newPlot('chart-revenue', [
+    {
+      x: labels, y: rev, name: 'Revenue (R$)',
+      type: 'scatter', mode: 'lines+markers',
+      line: { color: '#1d4ed8', width: 2.5 },
+      fill: 'tozeroy', fillcolor: 'rgba(29,78,216,0.07)',
+      marker: { size: 4, color: '#1d4ed8' },
+      hovertemplate: '%{x}<br>R$ %{y:,.0f}<extra>Revenue</extra>',
+      yaxis: 'y',
+    },
+    {
+      x: labels, y: orders, name: 'Orders',
+      type: 'scatter', mode: 'lines',
+      line: { color: '#f39c12', width: 2, dash: 'dot' },
+      marker: { size: 3 },
+      hovertemplate: '%{x}<br>%{y:,d} orders<extra>Orders</extra>',
+      yaxis: 'y2',
+    },
+  ], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, l: 60, r: 55, b: 40 },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Revenue (R$)', font: { size: 10 }, standoff: 8 },
+             tickformat: ',.0f' },
+    yaxis2: { title: { text: 'Orders', font: { size: 10 }, standoff: 8 },
+              overlaying: 'y', side: 'right', gridcolor: 'transparent',
+              tickfont: { size: 10 }, tickformat: ',d' },
+    legend: { orientation: 'h', y: -0.15, font: { size: 10 } },
+    hovermode: 'x unified',
+  }, PLOTLY_CONFIG);
+}
+
+function buildRfmChart() {
+  const PALETTE = ['#1d4ed8','#f39c12','#16a34a','#dc2626','#7c3aed','#0891b2','#d97706','#374151'];
+  const labels = D.rfm.map(r => r.segment);
+  const vals   = D.rfm.map(r => r.count);
+  Plotly.newPlot('chart-rfm', [{
+    labels, values: vals, type: 'pie', hole: 0.55,
+    marker: { colors: PALETTE.slice(0, labels.length) },
+    textinfo: 'label+percent',
+    textfont: { size: 10 },
+    hovertemplate: '<b>%{label}</b><br>%{value:,d} customers<br>%{percent}<extra></extra>',
+  }], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, l: 10, r: 10, b: 10 },
+    showlegend: false,
+    annotations: [{
+      text: `${D.kpi.unique_customers.toLocaleString()}<br>customers`,
+      x: 0.5, y: 0.5, xanchor: 'center', yanchor: 'middle',
+      showarrow: false, font: { size: 11, color: '#0f1f3d', family: 'Segoe UI' },
+    }],
+  }, PLOTLY_CONFIG);
+}
+
+function buildDeliveryScatter(stateFilter) {
+  const data = stateFilter
+    ? D.byState.filter(s => stateFilter.has(s.state))
+    : D.byState;
+
+  const maxOrd = Math.max(...data.map(s => s.total_orders));
+  Plotly.newPlot('chart-delivery', [{
+    x:    data.map(s => s.avg_delay_days),
+    y:    data.map(s => s.avg_review_score),
+    mode: 'markers+text',
+    type: 'scatter',
+    text: data.map(s => s.state),
+    textposition: 'top center',
+    textfont: { size: 9, color: '#64748b' },
+    marker: {
+      size:    data.map(s => 10 + (s.total_orders / maxOrd) * 28),
+      color:   data.map(s => s.late_pct),
+      colorscale: [[0,'#16a34a'],[0.5,'#f59e0b'],[1,'#dc2626']],
+      showscale: true,
+      colorbar: { title: '% Late', titlefont: { size: 9 }, tickfont: { size: 9 },
+                  len: 0.6, thickness: 10, x: 1.01 },
+      line:    { color: 'rgba(255,255,255,0.7)', width: 1 },
+      opacity: 0.85,
+    },
+    hovertemplate:
+      '<b>%{text}</b><br>' +
+      'Avg delay: %{x:.1f}d<br>' +
+      'Avg review: %{y:.2f}★<extra></extra>',
+  }], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, l: 55, r: 65, b: 45 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Avg Delivery Delay (days)', font: { size: 10 }, standoff: 8 } },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Avg Review Score', font: { size: 10 }, standoff: 8 } },
+    shapes: [
+      { type:'line', x0:0, x1:0, y0:1, y1:5, line:{ color:'#64748b', dash:'dot', width:1 } },
+    ],
+    annotations: [{
+      x: 0.02, y: 4.4, xref: 'paper', yref: 'y', showarrow: false,
+      text: '← Early delivery', font: { size: 9, color: '#94a3b8' },
+    }],
+  }, PLOTLY_CONFIG);
+}
+
+function buildCatChart() {
+  const cats    = [...D.categories].reverse();
+  const colors  = cats.map(c => {
+    const r = c.review;
+    if (r >= 4.3) return '#16a34a';
+    if (r >= 4.0) return '#84cc16';
+    if (r >= 3.7) return '#f59e0b';
+    return '#ef4444';
+  });
+  Plotly.newPlot('chart-cats', [{
+    y:           cats.map(c => c.category),
+    x:           cats.map(c => c.revenue / 1000),
+    type:        'bar',
+    orientation: 'h',
+    marker:      { color: colors, opacity: 0.88 },
+    text:        cats.map(c => `${c.review.toFixed(1)}★`),
+    textposition:'outside',
+    textfont:    { size: 9, color: '#475569' },
+    hovertemplate:
+      '<b>%{y}</b><br>Revenue: R$ %{x:.0f}K<br>' +
+      'Units: %{customdata[0]:,d}<br>Review: %{customdata[1]:.2f}★<extra></extra>',
+    customdata: cats.map(c => [c.units, c.review]),
+  }], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, l: 160, r: 60, b: 40 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Revenue (R$ thousands)', font: { size: 10 }, standoff: 8 } },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, tickfont: { size: 10 } },
+  }, PLOTLY_CONFIG);
+}
+
+function updateCharts() {
+  buildDeliveryScatter(selectedStates);
+}
+
+// ── Data info panel ───────────────────────────────────────────────────────────
+function buildDataInfo() {
+  const k = D.kpi;
+  document.getElementById('data-info').innerHTML =
+    `Source: BigQuery · dsai-module-2-project-496708<br>` +
+    `Warehouse: olist_warehouse (star schema)<br>` +
+    `Marts: olist_marts (9 analytical tables)<br>` +
+    `Period: Sep 2016 – Oct 2018<br>` +
+    `Orders: ${k.total_orders.toLocaleString()} · ` +
+    `Customers: ${k.unique_customers.toLocaleString()}`;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildKpis();
+  buildStateList();
+  buildDataInfo();
+  initMap();
+  buildRevenueChart();
+  buildRfmChart();
+  buildDeliveryScatter(null);
+  buildCatChart();
+});
+</script>
+</body>
+</html>
