@@ -324,6 +324,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;
       <button class="mode-btn" data-mode="opportunity" onclick="setMode(this)">
         <span class="dot" style="background:#7c3aed"></span>Expansion Opportunity
       </button>
+      <button class="mode-btn" data-mode="combined" onclick="setMode(this)">
+        <span class="dot" style="background:conic-gradient(#1d4ed8 90deg,#16a34a 90deg 180deg,#ef4444 180deg 270deg,#7c3aed 270deg)"></span>Combined View
+      </button>
     </div>
 
     <!-- State filter -->
@@ -512,21 +515,50 @@ function initMap() {
   updateLegend();
 }
 
+// ── Combined-view quadrant icon ────────────────────────────────────────────────
+function getCombinedIcon(s) {
+  const r  = Math.round(8 + (s.total_orders / maxOrders) * 28);
+  const sz = r * 2 + 6;
+  const c  = r + 3;
+  const oc = ordersColor(s.total_orders);
+  const rc = reviewColor(s.avg_review_score);
+  const dc = deliveryColor(s.late_pct);
+  const xc = opportunityColor(s.cs_ratio);
+  const op = 0.78;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}">` +
+    `<path d="M${c},${c} L${c-r},${c} A${r},${r},0,0,1,${c},${c-r}Z" fill="${oc}" opacity="${op}"/>` +
+    `<path d="M${c},${c} L${c},${c-r} A${r},${r},0,0,1,${c+r},${c}Z" fill="${rc}" opacity="${op}"/>` +
+    `<path d="M${c},${c} L${c+r},${c} A${r},${r},0,0,1,${c},${c+r}Z" fill="${dc}" opacity="${op}"/>` +
+    `<path d="M${c},${c} L${c},${c+r} A${r},${r},0,0,1,${c-r},${c}Z" fill="${xc}" opacity="${op}"/>` +
+    `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="1.5"/>` +
+    `<circle cx="${c}" cy="${c}" r="2.5" fill="rgba(255,255,255,0.85)"/>` +
+    `</svg>`;
+  return L.divIcon({ html: svg, className: '', iconSize: [sz, sz], iconAnchor: [c, c] });
+}
+
 // ── Draw markers ──────────────────────────────────────────────────────────────
 function drawMarkers() {
   if (markersLayer) { leafletMap.removeLayer(markersLayer); markersLayer = null; }
   const visible = D.byState.filter(s => selectedStates.has(s.state));
   const markers = visible.map(s => {
-    const m = L.circleMarker([s.lat, s.lng], {
-      radius:      getRadius(s),
-      fillColor:   getColor(s),
-      color:       'rgba(255,255,255,0.7)',
-      weight:      1.5,
-      opacity:     1,
-      fillOpacity: 0.85,
-    });
-    m.on('mouseover', () => { infoControl.update(s); m.setStyle({ weight: 3, color: '#0f1f3d' }); });
-    m.on('mouseout',  () => { infoControl.update(null); m.setStyle({ weight: 1.5, color: 'rgba(255,255,255,0.7)' }); });
+    let m;
+    if (currentMode === 'combined') {
+      m = L.marker([s.lat, s.lng], { icon: getCombinedIcon(s) });
+      m.on('mouseover', () => infoControl.update(s));
+      m.on('mouseout',  () => infoControl.update(null));
+    } else {
+      m = L.circleMarker([s.lat, s.lng], {
+        radius:      getRadius(s),
+        fillColor:   getColor(s),
+        color:       'rgba(255,255,255,0.7)',
+        weight:      1.5,
+        opacity:     1,
+        fillOpacity: 0.85,
+      });
+      m.on('mouseover', () => { infoControl.update(s); m.setStyle({ weight: 3, color: '#0f1f3d' }); });
+      m.on('mouseout',  () => { infoControl.update(null); m.setStyle({ weight: 1.5, color: 'rgba(255,255,255,0.7)' }); });
+    }
     m.on('click', () => isolateState(s.state));
     m.bindTooltip(
       `<b>${s.name}</b><br>` +
@@ -552,6 +584,8 @@ const MODE_META = {
                  sub:   'Colour = avg review score. Green ≥ 4.3★, Red < 3.4★.' },
   opportunity: { title: 'Geographic Expansion Opportunity',
                  sub:   'Colour = customer-to-seller ratio. Purple = underserved markets.' },
+  combined:    { title: 'Combined Overview',
+                 sub:   'Quadrant icons: ↖ Volume (blue) · ↗ Review (green) · ↘ Delivery (red) · ↙ Expansion (purple). Size = order volume.' },
 };
 
 function setMode(btn) {
